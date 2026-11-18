@@ -84,7 +84,7 @@ def main():
         line = (f"  {time.strftime('%H:%M:%S', time.localtime(mo['epoch']))}  "
                 f"{mo['count']} msgs (threshold {thr_at[mo['epoch']]:.1f})")
         if samples:
-            at = max(0.0, clip.rec_seconds(samples, mo["epoch"]) - 20)
+            at = clip.clip_start(clip.rec_seconds(samples, mo["epoch"]))
             line += f"  ->  python clip.py \"{rec}\" --at {at:.1f}"
         print(line)
 

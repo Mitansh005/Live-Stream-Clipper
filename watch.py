@@ -208,9 +208,9 @@ class YouTubeChat(ChatCounter):
 class Clipper(threading.Thread):
     """Makes clips one by one so Whisper never blocks recording or chat."""
 
-    def __init__(self, rec, model):
+    def __init__(self, rec, model, seconds):
         super().__init__(daemon=True)
-        self.rec, self.model, self.q, self.needed = rec, model, queue.Queue(), []
+        self.rec, self.model, self.seconds, self.q, self.needed = rec, model, seconds, queue.Queue(), []
 
     def add(self, start, out):
         self.needed.append(start)
@@ -219,12 +219,12 @@ class Clipper(threading.Thread):
     def run(self):
         while (job := self.q.get()) is not None:
             start, out = job
-            end = start + 30
+            end = start + self.seconds
             while self.rec.alive() and not (self.rec.seconds() >= end and clip.covered(self.rec.dir, end)):
                 time.sleep(2)
             log.info("making clip %s", out.name)
             try:
-                _, caps = clip.make_clip(self.rec.dir, start, 30, out, self.model)
+                _, caps = clip.make_clip(self.rec.dir, start, self.seconds, out, self.model)
                 log.info("clip done: %s (%d captions)", out, len(caps))
             except subprocess.CalledProcessError as e:
                 log.error("clip failed: %s", e.stderr.decode(errors="replace")[-500:])
@@ -258,7 +258,7 @@ def run_session(a):
     rec = Recording(a.url, rec_dir, a.quality)
     chat = a.chat_cls(a.target)
     chat.start()
-    clipper = Clipper(rec, a.model)
+    clipper = Clipper(rec, a.model, a.clip_seconds)
     clipper.start()
     merger, history = spikes.Merger(), []
     window = int(a.baseline_min * 60 / spikes.BUCKET)
@@ -266,7 +266,7 @@ def run_session(a):
     buckets = n_spikes = 0
 
     def queue_clip(mo):
-        start = max(0.0, rec.to_rec(mo["epoch"]) - 20)
+        start = clip.clip_start(rec.to_rec(mo["epoch"]), a.clip_seconds)
         out = HERE / "clips" / f"{name}-{datetime.fromtimestamp(mo['epoch']):%H%M%S}-{mo['count']}msgs.mp4"
         log.info("spike moment at %s (%d msgs) -> clip from %.1fs", out.name, mo["count"], start)
         clipper.add(start, out)
@@ -300,7 +300,7 @@ def run_session(a):
             if buckets % 6 == 0:
                 log.info("last bucket %d msgs, spike threshold %.1f (mean %.1f, std %.1f), recorded %.0fs",
                          count, thr, mean, std, rec.seconds())
-                pending = clipper.needed + ([rec.to_rec(merger.cur["epoch"]) - 20] if merger.cur else [])
+                pending = clipper.needed + ([clip.clip_start(rec.to_rec(merger.cur["epoch"]), a.clip_seconds)] if merger.cur else [])
                 prune(rec, a.keep_minutes, min(pending, default=math.inf))
 
     log.info("stream ended or time limit reached; stopping recorder")
@@ -320,6 +320,7 @@ def main():
     ap.add_argument("--baseline-min", type=float, default=5, help="baseline window in minutes")
     ap.add_argument("--warmup-buckets", type=int, default=12, help="no spikes before this many buckets")
     ap.add_argument("--quality", default="720p60,720p,best")
+    ap.add_argument("--clip-seconds", type=float, default=clip.DURATION, help="clip length; it ends at the end of the spike bucket")
     ap.add_argument("--model", default="base", help="faster-whisper model")
     ap.add_argument("--keep-minutes", type=float, default=15, help="delete recording pieces older than this")
     ap.add_argument("--minutes", type=float, default=0, help="stop after N minutes and exit (0 = until offline)")

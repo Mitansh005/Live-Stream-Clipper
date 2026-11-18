@@ -2,7 +2,7 @@
 
 Auto-clipper for Twitch and YouTube live streams.
 
-Watches a Twitch channel or a YouTube live stream. While it's live, it records the stream, counts chat messages every 10 seconds, and turns every chat spike into a 30-second vertical (1080x1920) clip with burned-in captions. No API keys, no accounts, no paid services.
+Watches a Twitch channel or a YouTube live stream. While it's live, it records the stream, counts chat messages every 10 seconds, and turns every chat spike into a 35-second vertical 9:16 (1080x1920) clip with burned-in captions. No API keys, no accounts, no paid services.
 
 ## Setup (once)
 
@@ -42,6 +42,7 @@ Use the channel's `/live` URL for overnight runs: each new stream gets a new vid
 | `--baseline-min` | 5 | Length of the baseline window, in minutes (5 = 30 buckets) |
 | `--warmup-buckets` | 12 | No spikes until this many buckets (2 minutes) have been counted |
 | `--quality` | `720p60,720p,best` | Streamlink quality list (first one available wins) |
+| `--clip-seconds` | 35 | Clip length in seconds |
 | `--model` | base | faster-whisper model (tiny, base, small, medium…) |
 | `--keep-minutes` | 15 | Delete recording pieces older than this, except ones a pending clip still needs |
 | `--minutes` | 0 | Stop after N minutes and exit (for tests). 0 = run until the stream goes offline |
@@ -54,7 +55,7 @@ Where things go:
 - `clips/<channel>-<date-time>-<HHMMSS>-<N>msgs.mp4` plus an `.srt` with the same name
 - `logs/<channel>.log`: everything that was printed, with timestamps
 
-A clip runs from 20 s before the spike's 10 s bucket to the end of that bucket (30 s total). Spikes less than 30 s apart count as one moment, and the loudest bucket is used.
+A clip ends at the end of the spike's 10 s bucket and starts `--clip-seconds` earlier (default 35 s, so 25 s of lead-in before the bucket). Spikes less than 30 s apart count as one moment, and the loudest bucket is used.
 
 ## Tune the spike settings afterwards
 
@@ -72,7 +73,7 @@ Options: `--k`, `--min-count`, `--baseline-min`, `--warmup-buckets` (same meanin
 .venv\Scripts\python clip.py recordings/xqc-20261118-064209 --at 300 --out clips/manual.mp4
 ```
 
-`--at` is the clip start in seconds into the recording. Other options: `--duration` (default 30), `--model` (default base).
+`--at` is the clip start in seconds into the recording. Other options: `--duration` (default 35), `--model` (default base).
 
 ## Leave it running overnight
 

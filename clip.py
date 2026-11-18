@@ -1,4 +1,4 @@
-"""Cut a captioned vertical 30 s clip out of a recording folder.
+"""Cut a captioned vertical 9:16 (1080x1920) clip out of a recording folder.
     python clip.py recordings/<session> --at <seconds> --out clips/manual.mp4
 --at is the clip start in seconds into the recording.
 """
@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 FFMPEG = "ffmpeg"
 CAPTION_Y = 1340
+DURATION = 35  # default clip length, seconds
 _models = {}
 
 
@@ -42,6 +43,11 @@ def rec_seconds(samples, epoch):
         return 0.0
     wall, secs = samples[i]
     return secs + min(max(epoch - wall, 0.0), 1.0)
+
+
+def clip_start(moment, duration=DURATION):
+    """A clip ends at the end of the spike's 10 s bucket (moment = bucket start, in recording seconds)."""
+    return max(0.0, moment + 10 - duration)
 
 
 def group_words(words, max_words=3, gap=0.45):
@@ -142,7 +148,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("recording")
     ap.add_argument("--at", type=float, required=True, help="clip start, seconds into the recording")
-    ap.add_argument("--duration", type=float, default=30)
+    ap.add_argument("--duration", type=float, default=DURATION)
     ap.add_argument("--out", default="clips/manual.mp4")
     ap.add_argument("--model", default="base")
     a = ap.parse_args()

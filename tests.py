@@ -1,5 +1,5 @@
 """Quick self-check of the pure logic: python tests.py"""
-from clip import group_words, rec_seconds
+from clip import clip_start, group_words, rec_seconds
 from spikes import Merger, evaluate, replay
 
 # evaluate: warm-up, min-count, k*std
@@ -28,4 +28,6 @@ assert rec_seconds(samples, 155) == 3.0
 # captions: max 3 words, break on pause > 0.45 s and punctuation
 w = [(0, .2, " Oh"), (.25, .4, " my"), (.45, .6, " god"), (.65, .8, " what"), (1.5, 1.7, " no,"), (1.75, 1.9, " way")]
 assert group_words(w) == [(0, .6, "Oh my god"), (.65, .8, "what"), (1.5, 1.7, "no,"), (1.75, 1.9, "way")]
+# clip ends at the end of the spike bucket
+assert clip_start(100, 35) == 75 and clip_start(10, 35) == 0
 print("all tests passed")
